@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Proposta IA — DevLune</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Sora:wght@400;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <style>
+        :root{
+            --gold:#f0a500;--gold-bright:#ffbe33;
+            --deep-space:#080617;--surface:#100d2b;
+            --glass:rgba(255,255,255,0.03);
+            --glass-border:rgba(240,165,0,0.15);
+            --text:#f0f0f5;--text-dim:#9490c0;
+            --ease:cubic-bezier(0.2,0,0,1);
+        }
+        *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        html{scroll-behavior:smooth;height:100%}
+        body{background:var(--deep-space);color:var(--text);font-family:'Outfit',sans-serif;overflow-x:hidden;min-height:100vh;-webkit-font-smoothing:antialiased}
+        h1,h2,h3,h4{font-family:'Sora',sans-serif;font-weight:800;letter-spacing:-0.02em}
+
+        /* CANVAS */
+        #moon-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-3;pointer-events:none}
+        #particle-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:-2;pointer-events:none}
+
+        /* TOPBAR */
+        .topbar{
+            position:fixed;top:0;width:100%;padding:1rem 5%;
+            display:flex;justify-content:space-between;align-items:center;
+            z-index:100;background:rgba(8,6,23,.6);
+            backdrop-filter:blur(20px);
+            border-bottom:1px solid rgba(240,165,0,.08);
+        }
+        .logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff}
+        .logo-mark{width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;color:var(--gold);font-weight:800;font-family:'Sora',sans-serif;font-size:.85rem}
+        .back-link{color:var(--text-dim);text-decoration:none;font-size:.85rem;display:flex;align-items:center;gap:6px;transition:color .2s}
+        .back-link:hover{color:var(--gold)}
+        .topbar-user{display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--text-dim)}
+        .user-dot{width:28px;height:28px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--deep-space);font-weight:700;font-size:.75rem;font-family:'Sora',sans-serif}
+
+        /* MAIN LAYOUT */
+        .app{
+            display:grid;
+            grid-template-columns:420px 1fr;
+            min-height:100vh;
+            padding-top:65px;
+        }
+
+        /* LEFT PANEL */
+        .panel-form{
+            padding:2.5rem 2rem;
+            border-right:1px solid rgba(240,165,0,.08);
+            background:rgba(16,13,43,.4);
+            backdrop-filter:blur(10px);
+            overflow-y:auto;
+            position:relative;
+        }
+
+        .panel-title{font-size:1.5rem;color:#fff;margin-bottom:.3rem}
+        .panel-sub{font-size:.88rem;color:var(--text-dim);line-height:1.6;margin-bottom:2rem;font-weight:300}
+
+        /* STEPS — liquid fill animation */
+        .steps{display:flex;gap:.5rem;margin-bottom:2rem}
+        .step{
+            flex:1;height:3px;border-radius:2px;
+            background:rgba(240,165,0,.12);
+            position:relative;overflow:hidden;
+        }
+        .step::after{
+            content:'';position:absolute;top:0;left:0;height:100%;width:0;
+            background:var(--gold);border-radius:2px;
+            transition:width .6s var(--ease);
+        }
+        .step.active::after{width:100%;background:var(--gold)}
+        .step.done::after{width:100%;background:rgba(240,165,0,.45)}
+
+        /* FORM */
+        .field{margin-bottom:1.4rem}
+        .field label{
+            display:flex;align-items:center;gap:6px;
+            font-size:.72rem;color:var(--gold);
+            text-transform:uppercase;font-weight:600;
+            letter-spacing:.1em;margin-bottom:7px;
+        }
+        .field label span{
+            background:rgba(240,165,0,.12);
+            color:var(--gold);border-radius:4px;
+            padding:1px 6px;font-size:.65rem;
+        }
+        .field input,.field textarea,.field select{
+            width:100%;padding:1rem 1.1rem;
+            background:rgba(0,0,0,.25);
+            border:1px solid rgba(240,165,0,.12);
+            border-radius:12px;color:#fff;
+            font-family:'Outfit',sans-serif;font-size:.92rem;
+            transition:.25s;outline:none;
+            appearance:none;-webkit-appearance:none;
+        }
+        .field input:focus,.field textarea:focus,.field select:focus{
+            border-color:var(--gold);background:rgba(0,0,0,.35);
+            box-shadow:0 0 0 3px rgba(240,165,0,.08);
+        }
+        .field input::placeholder,.field textarea::placeholder{color:rgba(148,144,192,.5)}
+        .field textarea{resize:vertical;min-height:110px;line-height:1.6}
+
+        /* CHAR COUNTER */
+        .field-footer{display:flex;justify-content:flex-end;margin-top:5px}
+        .char-count{font-size:.72rem;color:var(--text-dim)}
+        .char-count.warn{color:#f0a500}
+        .char-count.ok{color:#4cd97b}
+
+        /* SEGMENT CHIPS — ripple effect */
+        .chips{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.4rem}
+        .chip{
+            padding:.35rem .85rem;border-radius:50px;
+            border:1px solid rgba(240,165,0,.15);
+            color:var(--text-dim);font-size:.78rem;cursor:pointer;
+            transition:.25s;background:transparent;font-family:'Outfit',sans-serif;
+            position:relative;overflow:hidden;
+        }
+        .chip:hover{border-color:var(--gold);color:var(--gold)}
+        .chip.selected{background:rgba(240,165,0,.12);border-color:var(--gold);color:var(--gold)}
+        .chip-ripple{
+            position:absolute;border-radius:50%;
+            background:rgba(240,165,0,.3);
+            transform:scale(0);
+            animation:ripple .5s ease forwards;
+            pointer-events:none;
+        }
+        @keyframes ripple{to{transform:scale(4);opacity:0}}
+
+        /* SUBMIT BUTTON */
+        .btn-submit{
+            width:100%;padding:1.1rem;border-radius:14px;border:none;
+            background:linear-gradient(135deg,var(--gold),var(--gold-bright));
+            color:var(--deep-space);font-family:'Sora',sans-serif;
+            font-weight:700;font-size:1rem;cursor:pointer;
+            transition:.3s var(--ease);position:relative;overflow:hidden;
+        }
+        .btn-submit:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 12px 30px rgba(240,165,0,.3)}
+        .btn-submit:disabled{opacity:.7;cursor:not-allowed;transform:none}
+        .btn-submit .shimmer{
+            position:absolute;inset:0;
+            background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);
+            transform:translateX(-100%);
+            animation:shimmer 2s infinite;
+        }
+        @keyframes shimmer{to{transform:translateX(100%)}}
+
+        /* Premium loading messages */
+        .loading-msg-cycle{font-size:.85rem;color:var(--text-dim);text-align:center;margin-top:.75rem;min-height:1.3em;transition:opacity .3s}
+        .loading-msg-cycle.fade{opacity:0}
+
+        /* AUTH GATE */
+        .auth-gate{
+            text-align:center;padding:2rem 1rem;
+            border:1px solid rgba(240,165,0,.15);
+            border-radius:20px;background:rgba(240,165,0,.03);
+        }
+        .auth-gate h3{color:#fff;margin-bottom:.5rem;font-size:1.2rem}
+        .auth-gate p{color:var(--text-dim);font-size:.88rem;margin-bottom:1.5rem;line-height:1.6;font-weight:300}
+        .btn-auth{
+            display:inline-flex;align-items:center;gap:8px;
+            padding:.75rem 1.75rem;border-radius:12px;border:none;
+            font-family:'Outfit',sans-serif;font-weight:600;font-size:.9rem;cursor:pointer;transition:.3s;
+        }
+        .btn-auth.primary{background:linear-gradient(135deg,var(--gold),var(--gold-bright));color:var(--deep-space)}
+        .btn-auth.secondary{background:transparent;color:#fff;border:1px solid rgba(240,165,0,.2);margin-left:.5rem}
+        .btn-auth:hover{transform:translateY(-2px)}
+
+        /* RIGHT PANEL */
+        .panel-result{
+            padding:2.5rem 2.5rem;
+            overflow-y:auto;
+            display:flex;flex-direction:column;
+        }
+
+        /* EMPTY STATE */
+        .empty-state{
+            flex:1;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            text-align:center;padding:3rem;
+            color:var(--text-dim);
+        }
+        .empty-icon{
+            width:80px;height:80px;
+            border:1px solid rgba(240,165,0,.12);
+            border-radius:50%;display:flex;align-items:center;justify-content:center;
+            margin:0 auto 1.5rem;
+            background:rgba(240,165,0,.04);
+            animation:pulse-border 3s ease-in-out infinite;
+        }
+        @keyframes pulse-border{
+            0%,100%{box-shadow:0 0 0 0 rgba(240,165,0,.15)}
+            50%{box-shadow:0 0 0 12px rgba(240,165,0,0)}
+        }
+        .empty-state h3{color:#fff;margin-bottom:.5rem;font-size:1.1rem}
+        .empty-state p{font-size:.88rem;line-height:1.6;max-width:300px}
+
+        /* LOADING STATE */
+        .loading-state{
+            flex:1;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            text-align:center;padding:3rem;display:none;
+        }
+        .loading-orb{
+            width:72px;height:72px;border-radius:50%;
+            border:2px solid rgba(240,165,0,.15);
+            border-top-color:var(--gold);
+            animation:spin .9s linear infinite;
+            margin:0 auto 1.5rem;
+            position:relative;
+        }
+        .loading-orb::after{
+            content:'';position:absolute;inset:6px;
+            border-radius:50%;border:1px solid rgba(240,165,0,.1);
+            border-bottom-color:var(--gold);
+            animation:spin .6s linear infinite reverse;
+        }
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading-dots span{
+            display:inline-block;width:6px;height:6px;
+            border-radius:50%;background:var(--gold);
+            margin:0 3px;opacity:.3;
+            animation:dot-pulse 1.4s ease-in-out infinite;
+        }
+        .loading-dots span:nth-child(2){animation-delay:.2s}
+        .loading-dots span:nth-child(3){animation-delay:.4s}
+        @keyframes dot-pulse{0%,80%,100%{opacity:.3}40%{opacity:1}}
+
+        /* RESULT STATE */
+        .result-state{display:none;flex-direction:column;gap:1rem;animation:slideUp .5s var(--ease)}
+        @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .result-state.visible{display:flex}
+
+        .result-header{
+            display:flex;align-items:flex-start;justify-content:space-between;
+            gap:1rem;margin-bottom:.5rem;flex-wrap:wrap;
+        }
+        .result-company{
+            font-size:.75rem;color:var(--gold);font-weight:600;
+            letter-spacing:.1em;text-transform:uppercase;margin-bottom:.25rem;
+        }
+        .result-title{font-size:1.5rem;color:#fff;line-height:1.2}
+        .result-badge{
+            display:inline-flex;align-items:center;gap:5px;
+            background:rgba(240,165,0,.08);border:1px solid rgba(240,165,0,.2);
+            border-radius:50px;padding:.3rem .85rem;
+            font-size:.7rem;color:var(--gold);font-weight:600;white-space:nowrap;
+        }
+
+        /* SCORE GAUGE */
+        .score-widget{
+            display:flex;align-items:center;gap:1.25rem;
+            background:rgba(240,165,0,.04);border:1px solid rgba(240,165,0,.12);
+            border-radius:14px;padding:1rem 1.25rem;margin-bottom:.5rem;
+        }
+        .score-gauge{position:relative;width:64px;height:64px;flex-shrink:0}
+        .score-gauge svg{width:64px;height:64px}
+        .score-gauge-text{
+            position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+            font-family:'Sora',sans-serif;font-weight:800;font-size:1rem;color:var(--gold);
+        }
+        .score-info h4{font-size:.88rem;color:#fff;margin-bottom:.2rem}
+        .score-info p{font-size:.78rem;color:var(--text-dim);line-height:1.5}
+
+        /* PROPOSTA CARDS — border fill */
+        .proposta-card{
+            border-radius:16px;padding:1.25rem 1.4rem;
+            animation:fadeCard .4s ease both;
+            position:relative;overflow:hidden;
+        }
+        .proposta-card::after{
+            content:'';position:absolute;left:0;top:0;
+            width:2px;height:0;background:currentColor;
+            animation:borderFill .8s var(--ease) forwards;
+        }
+        @keyframes borderFill{to{height:100%}}
+        .proposta-card:nth-child(1){animation-delay:.1s}.proposta-card:nth-child(1)::after{animation-delay:.1s}
+        .proposta-card:nth-child(2){animation-delay:.25s}.proposta-card:nth-child(2)::after{animation-delay:.25s}
+        .proposta-card:nth-child(3){animation-delay:.4s}.proposta-card:nth-child(3)::after{animation-delay:.4s}
+        .proposta-card:nth-child(4){animation-delay:.55s}.proposta-card:nth-child(4)::after{animation-delay:.55s}
+        @keyframes fadeCard{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+        .proposta-card-label{
+            font-size:.68rem;font-weight:700;letter-spacing:.12em;
+            text-transform:uppercase;margin-bottom:.65rem;
+            font-family:'Sora',sans-serif;
+        }
+        .proposta-card-body{font-size:.9rem;line-height:1.8;color:var(--text)}
+
+        /* STREAMING typewriter */
+        .stream-cursor{display:inline-block;width:2px;height:1em;background:var(--gold);margin-left:1px;vertical-align:middle;animation:blink .7s step-end infinite}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+        /* CONTACT BUTTONS */
+        .contact-section{
+            margin-top:1.5rem;padding-top:1.5rem;
+            border-top:1px solid rgba(240,165,0,.08);
+        }
+        .contact-label{font-size:.8rem;color:var(--text-dim);margin-bottom:.85rem}
+        .contact-btns{display:flex;gap:.75rem;flex-wrap:wrap}
+        .btn-contact{
+            flex:1;min-width:160px;padding:.9rem 1.2rem;border-radius:12px;
+            border:none;font-family:'Outfit',sans-serif;font-weight:600;
+            font-size:.88rem;cursor:pointer;transition:.3s var(--ease);
+            display:inline-flex;align-items:center;justify-content:center;gap:8px;
+        }
+        .btn-wpp{background:#25d366;color:#fff}
+        .btn-wpp:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(37,211,102,.3)}
+        .btn-email{background:linear-gradient(135deg,var(--gold),var(--gold-bright));color:var(--deep-space)}
+        .btn-email:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(240,165,0,.3)}
+        .btn-refazer{background:transparent;color:var(--text-dim);border:1px solid rgba(240,165,0,.15);width:100%;margin-top:.5rem}
+        .btn-refazer:hover{border-color:var(--gold);color:var(--gold)}
+
+        /* CONFIRM SECTION */
+        .confirm-section{
+            display:none;margin-top:.75rem;padding:1rem 1.2rem;
+            background:rgba(255,255,255,.03);border-radius:12px;
+            border:1px solid rgba(240,165,0,.1);
+        }
+        .confirm-section p{font-size:.83rem;color:var(--text-dim);margin-bottom:.75rem}
+        .confirm-btns{display:flex;gap:.5rem;flex-wrap:wrap}
+        .btn-confirm-yes{
+            padding:.5rem 1.2rem;border-radius:8px;border:none;
+            font-family:'Outfit',sans-serif;font-weight:600;font-size:.82rem;
+            cursor:pointer;background:#25d366;color:#fff;transition:.2s;
+        }
+        .btn-confirm-yes.email{background:var(--gold);color:var(--deep-space)}
+        .btn-confirm-no{
+            padding:.5rem 1rem;background:none;border:none;
+            color:var(--text-dim);font-size:.82rem;cursor:pointer;
+            text-decoration:underline;font-family:'Outfit',sans-serif;
+        }
+
+        /* SUCCESS */
+        .success-state{
+            display:none;flex-direction:column;align-items:center;
+            justify-content:center;text-align:center;padding:3rem;flex:1;
+        }
+        .success-state.visible{display:flex;animation:slideUp .4s var(--ease)}
+        .success-check{margin-bottom:1.5rem}
+        .success-state h3{color:#fff;font-size:1.4rem;margin-bottom:.5rem}
+        .success-state p{color:var(--text-dim);font-size:.9rem;line-height:1.6;max-width:320px}
+
+        /* MODAL AUTH */
+        .modal-overlay{
+            position:fixed;inset:0;background:rgba(5,4,13,.96);
+            backdrop-filter:blur(15px);display:none;align-items:center;
+            justify-content:center;z-index:2000;
+        }
+        .modal-overlay.open{display:flex}
+        .modal-card{
+            background:var(--surface);width:90%;max-width:400px;
+            padding:2.5rem;border-radius:28px;
+            border:1px solid var(--glass-border);
+            animation:slideUp .35s var(--ease);position:relative;
+        }
+        .input-group{margin-bottom:1.4rem}
+        .input-group label{display:block;font-size:.72rem;color:var(--gold);margin-bottom:6px;text-transform:uppercase;font-weight:600;letter-spacing:.08em}
+        .input-group input{width:100%;padding:1rem;background:rgba(0,0,0,.25);border:1px solid rgba(240,165,0,.12);border-radius:12px;color:#fff;font-family:'Outfit',sans-serif;font-size:.9rem;transition:.25s;outline:none}
+        .input-group input:focus{border-color:var(--gold);background:rgba(0,0,0,.35)}
+        .btn-modal{width:100%;padding:1rem;border-radius:12px;border:none;background:linear-gradient(135deg,var(--gold),var(--gold-bright));color:var(--deep-space);font-family:'Sora',sans-serif;font-weight:700;font-size:.95rem;cursor:pointer;transition:.3s;margin-top:.5rem}
+        .btn-modal:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(240,165,0,.3)}
+        #auth-error{color:#e74c3c;font-size:.82rem;margin-bottom:1rem;display:none}
+
+        /* TOAST */
+        .toast{
+            position:fixed;bottom:1.5rem;right:1.5rem;
+            background:var(--surface);border-left:3px solid var(--gold);
+            border-radius:12px;padding:1rem 1.4rem;
+            color:var(--text);font-size:.88rem;z-index:9999;
+            max-width:300px;min-width:220px;
+            transform:translateX(120%);transition:transform .35s var(--ease);
+            box-shadow:0 10px 28px rgba(0,0,0,.5);
+        }
+        .toast.show{transform:translateX(0)}
+        .toast.error{border-left-color:#e74c3c}
+        .toast.success{border-left-color:#4cd97b}
+        .toast-progress{position:absolute;bottom:0;left:0;height:2px;background:var(--gold);width:100%;animation:toastBar 4s linear forwards;border-radius:0 0 0 12px}
+        .toast.error .toast-progress{background:#e74c3c}
+        .toast.success .toast-progress{background:#4cd97b}
+        @keyframes toastBar{from{width:100%}to{width:0}}
+
+        /* RESPONSIVE */
+        @media(max-width:900px){
+            .app{grid-template-columns:1fr;padding-top:60px}
+            .panel-form{border-right:none;border-bottom:1px solid rgba(240,165,0,.08);min-height:auto}
+            .panel-result{min-height:60vh}
+        }
+        @media(max-width:480px){
+            .panel-form,.panel-result{padding:1.5rem 1rem}
+            .contact-btns{flex-direction:column}
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="moon-canvas"></canvas>
+<canvas id="particle-canvas"></canvas>
+
+<!-- TOPBAR -->
+<header class="topbar">
+    <a href="index.html" class="logo">
+        <img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAYGBgYHBgcICAcKCwoLCg8ODAwODxYQERAREBYiFRkVFRkVIh4kHhweJB42KiYmKjY+NDI0PkxERExfWl98fKcBBgYGBgcGBwgIBwoLCgsKDw4MDA4PFhAREBEQFiIVGRUVGRUiHiQeHB4kHjYqJiYqNj40MjQ+TERETF9aX3x8p//CABEIAUABQAMBIgACEQEDEQH/xAAyAAEAAgMBAAAAAAAAAAAAAAAABQYCAwQBAQEAAwEBAQAAAAAAAAAAAAAAAgMEAQUG/9oADAMBAAIQAxAAAAKtjbIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbud0rKx2VpZRWllFaWUVpZRWlj5Z8hnTzaIBLgAAABl1w7xJLVHvELYgAAAAWeQpln8jT2DFYAAAAjpFLlO03Krevn5hrrAEtXLhm5L3yr/MkVnn7Aa3tZgvgAAAAA98EpJVllstntSVStvlTFsyqIuW2kZQ7dVWkKJTPPluzWUrGbhPdyDrnzssHnvhannqqWqnzkD62cN1QAAAAAAAAAAAGyers7ks4eudi8lnZUO/Rqr57RXbjVIPMvArkXJxnu5QvgAAAAAAAOmPeZlj3gdAAO7h6a5W4fP64iv3am+rR3WWBnsswyWAQkHb6j6+fwbagAADLOPdQlwABdKXdPOu8gLH5itpLr5PcyhLgDr5JamVhHg61WtNU21d07W7JDoZbAEHOLOUhNQvt5QtiAezlUvYm3UrJZ4PQpAAXSl3Tzrsx5l8NA2OuezmDXWPeFr5ZXytAYbcaZYa56tG640izxSA8y8ABy9TqC5bO1V1nqnHGjfjlms46pLRPsZg11gALpS7p512Y8y/ki59fGA9nk+REjuUyCvrHKvWx4ec93K6uUXb2vWHwtQVSAAAx17cesubdVNMNHh7OUOgAF0pd0867MeZeAAObrpxh4jXX3RZ6mcLOAJWKVyuuVPm/KvlWGeSwAaOt/PExG6rfzHp0BLgAADdpc7vaEW9oG9oGWJLgdAAAAAe9PKj2R8j1fejnLOBLgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/xAAC/9oADAMBAAIAAwAAACEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEQ4444oQIEEEEEMkkEEEEGAEEEEFMcEEIsKoEEEEEEHIIIKYFiACNFsEEEEEEEEEEEEHWPssEGoEEEEEEEEIMEEFAGwkEGoEEEEYEEEGYAEEMEMsEEIYEE34EEEEGMEdkEKcEEFJFMiMEEEEFCBIFOIAsEEEGyQMEEEEEEEY6MEFI8sEAAIEEEFAMMOMEEEEEHAPIEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEH/xAAC/9oADAMBAAIAAwAAABD3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333zLLLLbf333333DDX33331D33332/j33hB/T33333202wwzznZft3zT33333333333313gHD31T33333333nf332r3TX31H3333L332m3/AN9q97199q/990N999p9U9/E9MK999sdfeU999p9Ncu9+9/V9999Y0/999p999wp/wDfbMPPe/ffffffPvrn/ffffffbjfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff/EAEARAAEDAQMGCQgKAwEAAAAAAAECAwQFAAYREBIgMUFREyEiM2FxcpLRBxQWUlNUkcEVIzAyQmCToaKxJENi0v/aAAgBAgEBPwD8yPOBppxwpUQhJUQkYk4brenFF3SO4LenFF3SO4LenFF3SO4LenFF3SO4LenFF3P9wWYvhQXTgZCm+2gizEhiQ2HGXUOIP4kkEaUibDjc/Jaa7awn+7N1ukOuBCJ7BUdQzxp3pu27DeclxmyYyySoAc2fDShz5cF4OxnlNq6NR6xttd28zVVTwLwDckDVsWN6ctQqMSnR1PyXM1Ow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" style="width:38px;height:38px;border-radius:10px;object-fit:cover" alt="DevLune Logo">
+        <span style="font-family:'Sora',sans-serif;font-weight:700;font-size:.95rem">Dev<span style="color:var(--gold)">Lune</span></span>
+    </a>
+    <a href="index.html" class="back-link" id="topbar-back">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Voltar ao site
+    </a>
+    <div class="topbar-user" id="topbar-user" style="display:none">
+        <div class="user-dot" id="topbar-initial"></div>
+        <span id="topbar-name"></span>
+        <button onclick="logoutProposta()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.8rem;font-family:'Outfit',sans-serif;margin-left:.5rem">Sair</button>
+    </div>
+</header>
+
+<!-- APP LAYOUT -->
+<main class="app">
+
+    <!-- PAINEL ESQUERDO — FORMULÁRIO -->
+    <aside class="panel-form">
+        <div class="steps" id="steps">
+            <div class="step active" id="step-1"></div>
+            <div class="step" id="step-2"></div>
+            <div class="step" id="step-3"></div>
+        </div>
+
+        <h2 class="panel-title">Proposta personalizada</h2>
+        <p class="panel-sub">Descreva seu negócio e nossa IA gera um diagnóstico técnico real em segundos.</p>
+
+        <!-- AUTH GATE -->
+        <div class="auth-gate" id="auth-gate">
+            <svg width="36" height="36" fill="none" stroke="var(--gold)" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto 1rem;display:block"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <h3>Acesso exclusivo</h3>
+            <p>Crie sua conta gratuita para acessar a ferramenta de proposta por IA da DevLune.</p>
+            <div>
+                <button class="btn-auth primary" onclick="abrirModal('register')">Criar conta grátis ✦</button>
+                <button class="btn-auth secondary" onclick="abrirModal('login')">Entrar</button>
+            </div>
+        </div>
+
+        <!-- FORMULÁRIO -->
+        <form id="form-proposta" style="display:none" onsubmit="handleAIRequest(event)">
+            <div class="field">
+                <label>Nome da empresa</label>
+                <input type="text" id="campo-empresa" placeholder="Ex: Padaria do João, Clínica Saúde..." required maxlength="60">
+            </div>
+
+            <div class="field">
+                <label>Segmento <span>escolha um ou escreva</span></label>
+                <div class="chips" id="chips">
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Alimentação')">🍕 Alimentação</button>
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Saúde')">🏥 Saúde</button>
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Varejo')">🛍️ Varejo</button>
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Logística')">🚚 Logística</button>
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Educação')">📚 Educação</button>
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Serviços')">⚙️ Serviços</button>
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Beleza')">💅 Beleza</button>
+                    <button type="button" class="chip" onclick="selecionarChip(this,'Imóveis')">🏠 Imóveis</button>
+                </div>
+                <input type="text" id="campo-segmento" placeholder="Ou descreva o seu segmento..." required>
+            </div>
+
+            <div class="field">
+                <label>Seus principais desafios</label>
+                <textarea id="campo-descricao" rows="5"
+                    placeholder="Ex: Perdemos muito tempo controlando estoque em planilhas..."
+                    required maxlength="600" oninput="atualizarContador(this)"></textarea>
+                <div class="field-footer">
+                    <span class="char-count" id="char-count">0 / 600</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="btn-analisar">
+                <div class="shimmer"></div>
+                ✦ Gerar proposta com IA
+            </button>
+            <div class="loading-msg-cycle" id="loading-msg" style="display:none"></div>
+        </form>
+    </aside>
+
+    <!-- PAINEL DIREITO — RESULTADO -->
+    <section class="panel-result">
+
+        <!-- EMPTY STATE -->
+        <div class="empty-state" id="empty-state">
+            <div class="empty-icon">
+                <svg width="32" height="32" fill="none" stroke="var(--gold)" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+            </div>
+            <h3>Sua proposta aparece aqui</h3>
+            <p>Preencha o formulário ao lado e nossa IA vai analisar seu negócio e gerar um diagnóstico personalizado.</p>
+        </div>
+
+        <!-- LOADING STATE -->
+        <div class="loading-state" id="loading-state">
+            <div class="loading-orb"></div>
+            <p style="color:#fff;font-weight:600;margin-bottom:.5rem" id="loading-title">Analisando seu negócio</p>
+            <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1.5rem">Nossa IA está preparando uma proposta personalizada</p>
+            <div class="loading-dots">
+                <span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <!-- RESULT STATE -->
+        <div class="result-state" id="result-state">
+            <div class="result-header">
+                <div>
+                    <div class="result-company" id="result-company-name"></div>
+                    <div class="result-title">Proposta DevLune</div>
+                </div>
+                <div class="result-badge">
+                    <svg width="12" height="12" fill="var(--gold)" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    Powered by IA
+                </div>
+            </div>
+
+            <!-- SCORE GAUGE -->
+            <div class="score-widget" id="score-widget" style="display:none">
+                <div class="score-gauge">
+                    <svg viewBox="0 0 64 64">
+                        <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(240,165,0,.1)" stroke-width="4"/>
+                        <circle cx="32" cy="32" r="26" fill="none" stroke="var(--gold)" stroke-width="4"
+                            stroke-dasharray="163" stroke-dashoffset="163"
+                            stroke-linecap="round" transform="rotate(-90 32 32)"
+                            id="score-arc" style="transition:stroke-dashoffset 1.2s var(--ease)"/>
+                    </svg>
+                    <div class="score-gauge-text" id="score-text">0</div>
+                </div>
+                <div class="score-info">
+                    <h4>Score de potencial</h4>
+                    <p id="score-desc">Avaliação baseada no seu setor e desafios descritos.</p>
+                </div>
+            </div>
+
+            <div id="proposta-content"></div>
+
+            <div class="contact-section" id="contact-section">
+                <p class="contact-label">Gostou? Escolha como prefere nos contatar:</p>
+                <div class="contact-btns">
+                    <button class="btn-contact btn-wpp" id="btn-whatsapp">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        Falar no WhatsApp
+                    </button>
+                    <button class="btn-contact btn-email" id="btn-email">
+                        <svg width="18" height="18" fill="none" stroke="var(--deep-space)" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0 1.1.9 2 2 2z"/><polyline points="22,6 12,12 2,6"/></svg>
+                        Enviar por Email
+                    </button>
+                </div>
+                <div class="confirm-section" id="confirm-wpp">
+                    <p>Conseguiu enviar no WhatsApp?</p>
+                    <div class="confirm-btns">
+                        <button class="btn-confirm-yes" onclick="mostrarSucesso()">Sim, enviei ✓</button>
+                        <button class="btn-confirm-no" onclick="resetarWpp()">Não consegui</button>
+                    </div>
+                </div>
+                <div class="confirm-section" id="confirm-email">
+                    <p>Conseguiu enviar o email?</p>
+                    <div class="confirm-btns">
+                        <button class="btn-confirm-yes email" onclick="mostrarSucesso()">Sim, enviei ✓</button>
+                        <button class="btn-confirm-no" onclick="resetarEmail()">Não consegui</button>
+                    </div>
+                </div>
+                <button class="btn-contact btn-refazer" onclick="refazer()">↺ Gerar nova proposta</button>
+            </div>
+        </div>
+
+        <!-- SUCCESS STATE -->
+        <div class="success-state" id="success-state">
+            <div class="success-check">
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                    <circle cx="36" cy="36" r="32" fill="none" stroke="var(--gold)" stroke-width="3" stroke-dasharray="201" stroke-dashoffset="201">
+                        <animate attributeName="stroke-dashoffset" from="201" to="0" dur="0.6s" fill="freeze"/>
+                    </circle>
+                    <polyline points="22,37 32,47 50,29" fill="none" stroke="var(--gold)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="40" stroke-dashoffset="40">
+                        <animate attributeName="stroke-dashoffset" from="40" to="0" dur="0.4s" begin="0.5s" fill="freeze"/>
+                    </polyline>
+                </svg>
+            </div>
+            <h3>Mensagem enviada!</h3>
+            <p style="margin-bottom:1.5rem">Nossa equipe entrará em contato em breve. Fique de olho no seu WhatsApp ou email!</p>
+            <button class="btn-contact btn-refazer" style="max-width:260px" onclick="refazer()">↺ Fazer outra proposta</button>
+        </div>
+
+    </section>
+</main>
+
+<!-- MODAL AUTH -->
+<div class="modal-overlay" id="modal-auth">
+    <div class="modal-card">
+        <span onclick="fecharModal()" style="position:absolute;top:20px;right:20px;cursor:pointer;color:var(--text-dim);font-size:1.5rem;line-height:1">&times;</span>
+        <h2 id="m-title" style="color:#fff;margin-bottom:.4rem;font-size:1.5rem">Entrar</h2>
+        <p id="m-sub" style="color:var(--text-dim);font-size:.88rem;margin-bottom:2rem;font-weight:300">Acesse o ecossistema DevLune.</p>
+        <form onsubmit="handleAuth(event)">
+            <div class="input-group" id="group-name" style="display:none">
+                <label>Nome completo</label>
+                <input type="text" id="auth-name" placeholder="Seu nome">
+            </div>
+            <div class="input-group">
+                <label>E-mail</label>
+                <input type="email" id="auth-email" placeholder="nome@empresa.com" required>
+            </div>
+            <div class="input-group">
+                <label>Senha</label>
+                <input type="password" id="auth-pass" placeholder="••••••••" required minlength="6">
+            </div>
+            <p id="auth-error"></p>
+            <button type="submit" class="btn-modal" id="btn-modal-submit">Continuar →</button>
+        </form>
+        <p id="m-toggle" style="margin-top:1.5rem;text-align:center;font-size:.85rem;color:var(--text-dim)">
+            Não tem conta? <span onclick="abrirModal('register')" style="color:var(--gold);cursor:pointer;font-weight:600">Criar conta grátis</span>
+        </p>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const SUPABASE_URL      = "https://vjuhdodrkfwbfkpsynrq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_KXQKfRMyJH57gczOoTHBGw_a5tP73My";
+const GROQ_API_KEY      = "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";
+const EMAILJS_SERVICE_ID  = "service_jgoni0h";
+const EMAILJS_TEMPLATE_ID = "template_vpuv6j7";
+const EMAILJS_PUBLIC_KEY  = "i0aYgXKDYw3rpSl5j";
+const DEVLUNE_EMAIL       = "devluneentreprise@gmail.com";
+
+let _supabase = null;
+try { _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch(e){}
+try { emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){}
+
+// ============================================================
+// AUTH
+// ============================================================
+function atualizarUI(user) {
+    const logado = !!user;
+    document.getElementById('auth-gate').style.display    = logado ? 'none' : 'block';
+    document.getElementById('form-proposta').style.display = logado ? 'block' : 'none';
+    document.getElementById('topbar-user').style.display  = logado ? 'flex' : 'none';
+    document.getElementById('topbar-back').style.display  = logado ? 'none' : 'flex';
+
+    if (logado) {
+        const nome = (user.user_metadata?.full_name || user.email.split('@')[0]).split(' ')[0];
+        document.getElementById('topbar-initial').innerText = nome[0].toUpperCase();
+        document.getElementById('topbar-name').innerText    = nome;
+        setStep(1);
+    }
+}
+
+if (_supabase) {
+    // Fix: onAuthStateChange dispara imediatamente com o estado atual da sessão
+    // (incluindo sessões vindas de outras páginas via localStorage).
+    // Usar apenas ele como fonte de verdade evita a race condition com getSession().
+    let _authResolved = false;
+    _supabase.auth.onAuthStateChange((_e, session) => {
+        _authResolved = true;
+        atualizarUI(session?.user || null);
+    });
+
+    // Fallback: se o onAuthStateChange demorar mais de 800ms (ex: tab inativa),
+    // forçamos a checagem via getSession para não deixar o usuário sem feedback.
+    setTimeout(async () => {
+        if (_authResolved) return;
+        const { data: { session } } = await _supabase.auth.getSession();
+        atualizarUI(session?.user || null);
+    }, 800);
+} else {
+    atualizarUI(null);
+}
+
+let _modalMode = null;
+function abrirModal(mode) {
+    document.getElementById('modal-auth').classList.add('open');
+    const isReg = mode === 'register';
+    _modalMode = mode;
+    document.getElementById('m-title').innerText = isReg ? 'Criar conta' : 'Entrar';
+    document.getElementById('m-sub').innerText   = isReg ? 'Crie sua conta gratuita.' : 'Acesse o ecossistema DevLune.';
+    document.getElementById('group-name').style.display = isReg ? 'block' : 'none';
+    document.getElementById('auth-error').style.display = 'none';
+    document.getElementById('m-toggle').innerHTML = isReg
+        ? 'Já tem conta? <span onclick="abrirModal(\'login\')" style="color:var(--gold);cursor:pointer;font-weight:600">Entrar</span>'
+        : 'Não tem conta? <span onclick="abrirModal(\'register\')" style="color:var(--gold);cursor:pointer;font-weight:600">Criar conta grátis</span>';
+}
+
+function fecharModal() {
+    document.getElementById('modal-auth').classList.remove('open');
+    document.getElementById('auth-name').value  = '';
+    document.getElementById('auth-email').value = '';
+    document.getElementById('auth-pass').value  = '';
+    _modalMode = null;
+}
+
+async function handleAuth(e) {
+    e.preventDefault();
+    if (!_supabase) return;
+    const isReg = _modalMode === 'register';
+    const name  = document.getElementById('auth-name').value.trim();
+    const email = document.getElementById('auth-email').value.trim();
+    const pass  = document.getElementById('auth-pass').value;
+    const errEl = document.getElementById('auth-error');
+    const btn   = document.getElementById('btn-modal-submit');
+
+    if (isReg && !name) { errEl.innerText='Insira seu nome.'; errEl.style.display='block'; return; }
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.innerText = 'Aguarde...';
+
+    try {
+        if (isReg) {
+            const { error } = await _supabase.auth.signUp({ email, password: pass, options:{ data:{ full_name: name } } });
+            if (error) throw error;
+            toast(`Bem-vindo(a), ${name.split(' ')[0]}! Verifique seu email. ✦`, 'success');
+            fecharModal();
+        } else {
+            const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
+            if (error) throw error;
+            toast('Bem-vindo(a) de volta! ✦', 'success');
+            fecharModal();
+        }
+    } catch(err) {
+        const msgs = {
+            'Invalid login credentials': 'Email ou senha incorretos.',
+            'User already registered':   'Email já cadastrado.',
+            'Email not confirmed':        'Confirme seu email antes de entrar.',
+        };
+        errEl.innerText = msgs[err.message] || err.message;
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false; btn.innerText = 'Continuar →';
+    }
+}
+
+async function logoutProposta() {
+    if (_supabase) await _supabase.auth.signOut();
+    // onAuthStateChange vai disparar automaticamente com session=null
+    // e chamar atualizarUI(null) — não precisamos chamar manualmente
+    toast('Até logo! ✦', 'success');
+}
+
+// ============================================================
+// STEPS INDICATOR
+// ============================================================
+function setStep(n) {
+    for (let i = 1; i <= 3; i++) {
+        const el = document.getElementById(`step-${i}`);
+        if (!el) continue;
+        el.className = 'step' + (i < n ? ' done' : i === n ? ' active' : '');
+    }
+}
+
+// ============================================================
+// CHIPS DE SEGMENTO
+// ============================================================
+function selecionarChip(el, valor) {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('campo-segmento').value = valor;
+}
+
+// ============================================================
+// CONTADOR DE CARACTERES
+// ============================================================
+function atualizarContador(el) {
+    const count = el.value.length;
+    const span  = document.getElementById('char-count');
+    span.innerText = `${count} / 600`;
+    span.className = 'char-count' + (count > 400 ? ' ok' : count > 500 ? ' warn' : '');
+    setStep(count > 20 ? 3 : 2);
+}
+
+// ============================================================
+// FORMATAÇÃO DA PROPOSTA
+// ============================================================
+function formatarProposta(texto) {
+    const secoes = {
+        '🎯 DIAGNÓSTICO':      { cor: '#f0a500', bg: 'rgba(240,165,0,0.06)',  borda: 'rgba(240,165,0,0.3)' },
+        '⚙️ SOLUÇÃO DEVLUNE':  { cor: '#7eb8f7', bg: 'rgba(126,184,247,0.05)', borda: 'rgba(126,184,247,0.25)' },
+        '📈 IMPACTO ESPERADO': { cor: '#4cd97b', bg: 'rgba(76,217,123,0.05)', borda: 'rgba(76,217,123,0.25)' },
+        '💬 PRÓXIMO PASSO':    { cor: '#c084fc', bg: 'rgba(192,132,252,0.05)', borda: 'rgba(192,132,252,0.25)' },
+    };
+    let html = '';
+    const blocos = texto.split(/\n(?=🎯|⚙️|📈|💬)/);
+    blocos.forEach(bloco => {
+        bloco = bloco.trim();
+        if (!bloco) return;
+        let key = null;
+        for (const k of Object.keys(secoes)) { if (bloco.startsWith(k)) { key = k; break; } }
+        if (key) {
+            const { cor, bg, borda } = secoes[key];
+            const body = bloco.replace(key, '').trim()
+                .replace(/^→ (.+)/gm, `<span style="display:flex;gap:8px;margin:.3rem 0"><span style="color:${cor}">→</span><span>$1</span></span>`)
+                .replace(/^✓ (.+)/gm, `<span style="display:flex;gap:8px;margin:.3rem 0"><span style="color:#4cd97b">✓</span><span>$1</span></span>`)
+                .replace(/\n/g,'<br>');
+            html += `<div class="proposta-card" style="background:${bg};border:1px solid ${borda}"><div class="proposta-card-label" style="color:${cor}">${key}</div><div class="proposta-card-body">${body}</div></div>`;
+        } else {
+            html += `<div class="proposta-card" style="background:rgba(255,255,255,.02);border:1px solid rgba(240,165,0,.08)"><div class="proposta-card-body">${bloco.replace(/\n/g,'<br>')}</div></div>`;
+        }
+    });
+    return html || `<div class="proposta-card" style="background:rgba(255,255,255,.02);border:1px solid rgba(240,165,0,.08)"><div class="proposta-card-body" style="white-space:pre-wrap">${texto}</div></div>`;
+}
+
+// ============================================================
+// IA — GROQ
+// ============================================================
+async function handleAIRequest(e) {
+    e.preventDefault();
+    const empresa   = document.getElementById('campo-empresa').value.trim();
+    const segmento  = document.getElementById('campo-segmento').value.trim();
+    const descricao = document.getElementById('campo-descricao').value.trim();
+    if (descricao.length < 20) { toast('Descreva seus desafios com mais detalhes.','error'); return; }
+
+    // UI: loading
+    document.getElementById('empty-state').style.display   = 'none';
+    document.getElementById('loading-state').style.display = 'flex';
+    document.getElementById('result-state').classList.remove('visible');
+    document.getElementById('success-state').classList.remove('visible');
+
+    const btn = document.getElementById('btn-analisar');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="shimmer"></div>Analisando...';
+    setStep(3);
+
+    const systemPrompt = `Você é um consultor especialista da DevLune, startup brasileira de software para pequenas e médias empresas. Analise o negócio descrito e gere uma proposta técnica personalizada, estruturada e visualmente organizada.
+
+Use EXATAMENTE este formato de resposta (com os emojis e marcadores indicados):
+
+🎯 DIAGNÓSTICO
+[1-2 frases diretas identificando o problema central do negócio com suas próprias palavras]
+
+⚙️ SOLUÇÃO DEVLUNE
+[Descreva 2-3 soluções concretas e específicas que a DevLune desenvolveria. Use marcadores "→" para cada item. Seja técnico mas acessível: ex: "→ Sistema de agendamento online integrado ao WhatsApp", "→ Painel administrativo com relatórios em tempo real"]
+
+📈 IMPACTO ESPERADO
+[2-3 benefícios práticos e mensuráveis que o cliente verá no dia a dia. Use marcadores "✓". Ex: "✓ Redução de 70% no tempo gasto com tarefas manuais"]
+
+💬 PRÓXIMO PASSO
+[Uma frase curta e direta convidando para conversa, mencionando que é sem compromisso]
+
+Regras:
+- Máximo 180 palavras no total
+- Seja específico para o segmento descrito, nunca genérico
+- Tom: consultivo, confiante, próximo — sem jargão excessivo
+- Responda em português do Brasil
+- Não mencione que você é uma IA`;
+
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${GROQ_API_KEY}` },
+            body: JSON.stringify({
+                model:'llama-3.3-70b-versatile', max_tokens:500, temperature:0.7,
+                messages:[
+                    { role:'system', content:systemPrompt },
+                    { role:'user',   content:`Empresa: ${empresa}\nSegmento: ${segmento}\nDesafios relatados: ${descricao}` }
+                ]
+            })
+        });
+        if (!res.ok) throw new Error((await res.json().catch(()=>({}))).error?.message || 'Erro na API');
+        const data     = await res.json();
+        const proposta = data.choices?.[0]?.message?.content;
+        if (!proposta) throw new Error('Resposta vazia da IA');
+
+        window._proposta  = proposta;
+        window._empresa   = empresa;
+        window._segmento  = segmento;
+        window._descricao = descricao;
+
+        document.getElementById('result-company-name').innerText = empresa;
+        document.getElementById('proposta-content').innerHTML    = formatarProposta(proposta);
+        document.getElementById('loading-state').style.display   = 'none';
+        document.getElementById('result-state').classList.add('visible');
+
+    } catch(err) {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('empty-state').style.display   = 'flex';
+        toast('Erro ao conectar com a IA: ' + (err.message || 'Tente novamente.'), 'error');
+        setStep(2);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<div class="shimmer"></div>✦ Gerar proposta com IA';
+    }
+}
+
+// ============================================================
+// CONTATO — WhatsApp e Email
+// ============================================================
+document.getElementById('btn-whatsapp').addEventListener('click', async () => {
+    let nome = 'Cliente';
+    if (_supabase) {
+        const { data:{ user } } = await _supabase.auth.getUser().catch(()=>({data:{user:null}}));
+        if (user) nome = (user.user_metadata?.full_name || user.email.split('@')[0]).split(' ')[0];
+    }
+    const msg =
+        `Olá, DevLune! Me chamo ${nome}.\n\n` +
+        `🏢 *Empresa:* ${window._empresa||''}\n` +
+        `📌 *Segmento:* ${window._segmento||''}\n\n` +
+        `📋 *Desafios:*\n${(window._descricao||'').substring(0,300)}\n\n` +
+        `💡 *Proposta da IA:*\n${(window._proposta||'').substring(0,450)}\n\n` +
+        `Gostaria de conversar!`;
+    const nova = window.open(`https://wa.me/5511914297206?text=${encodeURIComponent(msg)}`, '_blank');
+    if (nova) {
+        document.getElementById('btn-whatsapp').disabled = true;
+        document.getElementById('btn-whatsapp').innerText = 'WhatsApp aberto...';
+        document.getElementById('confirm-wpp').style.display = 'block';
+        toast('WhatsApp aberto! Confirme o envio abaixo.', 'success');
+    } else {
+        toast('Permita popups ou tente novamente.', 'error');
+    }
+});
+
+document.getElementById('btn-email').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-email');
+    btn.disabled = true; btn.innerText = 'Enviando...';
+    let userEmail = '';
+    if (_supabase) {
+        const { data:{ user } } = await _supabase.auth.getUser().catch(()=>({data:{user:null}}));
+        if (user) userEmail = user.email;
+    }
+    try {
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+            to_email:   DEVLUNE_EMAIL,
+            from_name:  userEmail.split('@')[0] || 'Cliente',
+            from_email: userEmail,
+            reply_to:   userEmail,
+            empresa:    window._empresa   || '',
+            segmento:   window._segmento  || '',
+            desafios:   window._descricao || '',
+            proposta:   window._proposta  || '',
+        });
+        btn.innerText = 'Email enviado ✓';
+        toast('Email enviado com sucesso!', 'success');
+        setTimeout(() => mostrarSucesso(), 1500);
+    } catch(err) {
+        // Fallback mailto
+        const assunto = encodeURIComponent(`Proposta DevLune — ${window._empresa||'Empresa'}`);
+        const corpo   = encodeURIComponent(`Empresa: ${window._empresa||''}\nSegmento: ${window._segmento||''}\n\nDesafios:\n${window._descricao||''}\n\nProposta DevLune:\n${window._proposta||''}`);
+        window.location.href = `mailto:${DEVLUNE_EMAIL}?subject=${assunto}&body=${corpo}`;
+        btn.innerText = 'Email aberto...';
+        document.getElementById('confirm-email').style.display = 'block';
+        toast('App de email aberto! Confirme o envio abaixo.', 'success');
+    }
+});
+
+function resetarWpp() {
+    document.getElementById('btn-whatsapp').disabled = false;
+    document.getElementById('btn-whatsapp').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Falar no WhatsApp';
+    document.getElementById('confirm-wpp').style.display = 'none';
+}
+
+function resetarEmail() {
+    const btn = document.getElementById('btn-email');
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="18" height="18" fill="none" stroke="var(--deep-space)" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0 1.1.9 2 2 2z"/><polyline points="22,6 12,12 2,6"/></svg> Enviar por Email';
+    document.getElementById('confirm-email').style.display = 'none';
+}
+
+function mostrarSucesso() {
+    document.getElementById('result-state').classList.remove('visible');
+    document.getElementById('success-state').classList.add('visible');
+}
+
+function refazer() {
+    document.getElementById('success-state').classList.remove('visible');
+    document.getElementById('result-state').classList.remove('visible');
+    document.getElementById('empty-state').style.display = 'flex';
+    document.getElementById('form-proposta').reset();
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    document.getElementById('char-count').innerText = '0 / 600';
+    document.getElementById('confirm-wpp').style.display   = 'none';
+    document.getElementById('confirm-email').style.display = 'none';
+    resetarWpp(); resetarEmail();
+    setStep(1);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function toast(msg, tipo='success') {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.className = `toast ${tipo} show`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+// ============================================================
+// CLOSE MODAL ON OVERLAY CLICK
+// ============================================================
+document.getElementById('modal-auth').addEventListener('click', e => {
+    if (e.target === e.currentTarget) fecharModal();
+});
+</script>
+
+<!-- LUA 3D (isolada) -->
+<script>
+(function(){
+    try {
+        const canvas = document.getElementById('moon-canvas');
+        if (!canvas || typeof THREE === 'undefined') return;
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true, powerPreference:'low-power' });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0,0,7);
+        const moonGroup = new THREE.Group();
+        scene.add(moonGroup);
+        moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.8,64,64), new THREE.MeshStandardMaterial({color:0xc8820a,roughness:.85,metalness:.05,emissive:0x2d1800,emissiveIntensity:.2})));
+        const shadow = new THREE.Mesh(new THREE.SphereGeometry(1.83,64,64), new THREE.MeshBasicMaterial({color:0x080617}));
+        shadow.position.set(-0.78,0.18,0.05);
+        moonGroup.add(shadow);
+        const glowMat = new THREE.MeshBasicMaterial({color:0xf0a500,transparent:true,opacity:.04,side:THREE.BackSide});
+        moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(2.1,32,32), glowMat));
+        const sun = new THREE.DirectionalLight(0xfff4cc,2.0);
+        sun.position.set(5,2,4); scene.add(sun);
+        scene.add(new THREE.AmbientLight(0x221100,.3));
+        moonGroup.position.set(3.2,0.5,0);
+        let tMx=0,tMy=0,cMx=0,cMy=0,rotY=0,rotX=0;
+        document.addEventListener('mousemove', e => { tMx=(e.clientX/window.innerWidth-.5)*2; tMy=(e.clientY/window.innerHeight-.5)*2; });
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const d=clock.getDelta(), t=clock.getElapsedTime();
+            rotY+=d*.04; rotX+=d*.008;
+            cMx+=(tMx-cMx)*.04; cMy+=(tMy-cMy)*.04;
+            moonGroup.rotation.y=rotY+cMx*.1;
+            moonGroup.rotation.x=rotX+cMy*.05;
+            glowMat.opacity=.03+Math.sin(t*.8)*.015;
+            moonGroup.position.y=0.5+Math.sin(t*.5)*.04;
+            renderer.render(scene,camera);
+        }
+        window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+        document.addEventListener('visibilitychange',()=>{ if(document.hidden) clock.stop(); else clock.start(); });
+        animate();
+    } catch(e){ console.error('Moon error:',e); }
+})();
+</script>
+
+<!-- PARTÍCULAS 2D (isoladas) -->
+<script>
+(function(){
+    try {
+        const c=document.getElementById('particle-canvas');
+        if(!c) return;
+        const ctx=c.getContext('2d');
+        let pts=[];
+        function init(){
+            c.width=window.innerWidth; c.height=window.innerHeight; pts=[];
+            const n=Math.floor((c.width*c.height)/12000);
+            for(let i=0;i<n;i++) pts.push({x:Math.random()*c.width,y:Math.random()*c.height,vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,r:Math.random()*1.1+.3});
+        }
+        function draw(){
+            ctx.clearRect(0,0,c.width,c.height);
+            for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+                const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);
+                if(d<100){ctx.strokeStyle=`rgba(240,165,0,${.12*(1-d/100)})`;ctx.lineWidth=.4;ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.stroke();}
+            }
+            pts.forEach(p=>{ctx.fillStyle='rgba(240,165,0,0.3)';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>c.width)p.vx*=-1;if(p.y<0||p.y>c.height)p.vy*=-1;});
+            requestAnimationFrame(draw);
+        }
+        window.addEventListener('resize',init);
+        init(); draw();
+    } catch(e){}
+})();
+</script>
+
+<script>
+// ============================================================
+// PREMIUM LOADING — cycling messages
+// ============================================================
+let _loadingMsgInterval = null;
+function startLoadingMessages() {
+    const msgs = ['Analisando seu negócio...','Construindo a solução...','Calculando impactos...','Finalizando proposta...'];
+    const el = document.getElementById('loading-title');
+    const msgEl = document.getElementById('loading-msg');
+    if (!el) return;
+    let i = 0;
+    if (msgEl) { msgEl.style.display='block'; msgEl.textContent = msgs[0]; }
+    _loadingMsgInterval = setInterval(() => {
+        i = (i + 1) % msgs.length;
+        if (el) el.textContent = msgs[i].replace('...','');
+        if (msgEl) {
+            msgEl.classList.add('fade');
+            setTimeout(() => { msgEl.textContent = msgs[i]; msgEl.classList.remove('fade'); }, 300);
+        }
+    }, 2000);
+}
+function stopLoadingMessages() {
+    clearInterval(_loadingMsgInterval);
+    const msgEl = document.getElementById('loading-msg');
+    if (msgEl) msgEl.style.display = 'none';
+}
+
+// Patch handleAIRequest to use premium loading
+const _origHandleAI = handleAIRequest;
+async function handleAIRequest(e) {
+    e.preventDefault();
+    const empresa   = document.getElementById('campo-empresa').value.trim();
+    const segmento  = document.getElementById('campo-segmento').value.trim();
+    const descricao = document.getElementById('campo-descricao').value.trim();
+    if (descricao.length < 20) { toast('Descreva seus desafios com mais detalhes.','error'); return; }
+
+    document.getElementById('empty-state').style.display   = 'none';
+    document.getElementById('loading-state').style.display = 'flex';
+    document.getElementById('result-state').classList.remove('visible');
+    document.getElementById('success-state').classList.remove('visible');
+
+    const btn = document.getElementById('btn-analisar');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="shimmer"></div><span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(8,6,23,.3);border-top-color:var(--deep-space);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px"></span>Gerando...';
+    setStep(3);
+    startLoadingMessages();
+
+    const GROQ_API_KEY_VAL = typeof GROQ_API_KEY !== 'undefined' ? GROQ_API_KEY : '';
+    const systemPrompt = `Você é um consultor especialista da DevLune, startup brasileira de software para pequenas e médias empresas. Analise o negócio descrito e gere uma proposta técnica personalizada, estruturada e visualmente organizada.
+
+Use EXATAMENTE este formato de resposta (com os emojis e marcadores indicados):
+
+🎯 DIAGNÓSTICO
+[1-2 frases diretas identificando o problema central do negócio com suas próprias palavras]
+
+⚙️ SOLUÇÃO DEVLUNE
+[Descreva 2-3 soluções concretas e específicas que a DevLune desenvolveria. Use marcadores "→" para cada item.]
+
+📈 IMPACTO ESPERADO
+[2-3 benefícios práticos e mensuráveis. Use marcadores "✓".]
+
+💬 PRÓXIMO PASSO
+[Uma frase curta e direta convidando para conversa, mencionando que é sem compromisso]
+
+Regras: Máximo 180 palavras no total. Seja específico para o segmento, nunca genérico. Tom consultivo, confiante. Responda em português do Brasil. Não mencione que você é uma IA`;
+
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_API_KEY_VAL}`},
+            body: JSON.stringify({
+                model:'llama-3.3-70b-versatile', max_tokens:500, temperature:0.7,
+                messages:[
+                    {role:'system',content:systemPrompt},
+                    {role:'user',content:`Empresa: ${empresa}\nSegmento: ${segmento}\nDesafios relatados: ${descricao}`}
+                ]
+            })
+        });
+        if (!res.ok) throw new Error((await res.json().catch(()=>({})))?.error?.message || 'Erro na API');
+        const data     = await res.json();
+        const proposta = data.choices?.[0]?.message?.content;
+        if (!proposta) throw new Error('Resposta vazia da IA');
+
+        window._proposta  = proposta;
+        window._empresa   = empresa;
+        window._segmento  = segmento;
+        window._descricao = descricao;
+
+        document.getElementById('result-company-name').innerText = empresa;
+        document.getElementById('loading-state').style.display   = 'none';
+        document.getElementById('result-state').classList.add('visible');
+
+        // Streaming render
+        await streamProposta(proposta);
+
+        // Show score gauge
+        showScoreGauge();
+
+    } catch(err) {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('empty-state').style.display   = 'flex';
+        toast('Erro ao conectar com a IA: ' + (err.message || 'Tente novamente.'), 'error');
+        setStep(2);
+    } finally {
+        stopLoadingMessages();
+        btn.disabled = false;
+        btn.innerHTML = '<div class="shimmer"></div>✦ Gerar proposta com IA';
+    }
+}
+
+// ============================================================
+// STREAMING RENDER
+// ============================================================
+async function streamProposta(texto) {
+    const container = document.getElementById('proposta-content');
+    container.innerHTML = '';
+    const secoes = {
+        '🎯 DIAGNÓSTICO':      { cor: '#f0a500', bg: 'rgba(240,165,0,0.06)',  borda: 'rgba(240,165,0,0.3)' },
+        '⚙️ SOLUÇÃO DEVLUNE':  { cor: '#7eb8f7', bg: 'rgba(126,184,247,0.05)', borda: 'rgba(126,184,247,0.25)' },
+        '📈 IMPACTO ESPERADO': { cor: '#4cd97b', bg: 'rgba(76,217,123,0.05)', borda: 'rgba(76,217,123,0.25)' },
+        '💬 PRÓXIMO PASSO':    { cor: '#c084fc', bg: 'rgba(192,132,252,0.05)', borda: 'rgba(192,132,252,0.25)' },
+    };
+    const blocos = texto.split(/\n(?=🎯|⚙️|📈|💬)/);
+    for (let bi = 0; bi < blocos.length; bi++) {
+        const bloco = blocos[bi].trim();
+        if (!bloco) continue;
+        let key = null;
+        for (const k of Object.keys(secoes)) { if (bloco.startsWith(k)) { key = k; break; } }
+        const { cor, bg, borda } = key ? secoes[key] : { cor:'var(--text-dim)', bg:'rgba(255,255,255,.02)', borda:'rgba(240,165,0,.08)' };
+        const card = document.createElement('div');
+        card.className = 'proposta-card';
+        card.style.cssText = `background:${bg};border:1px solid ${borda};color:${cor}`;
+        const label = key ? `<div class="proposta-card-label" style="color:${cor}">${key}</div>` : '';
+        const body  = document.createElement('div');
+        body.className = 'proposta-card-body';
+        body.innerHTML = `<span class="stream-cursor"></span>`;
+        card.innerHTML = label;
+        card.appendChild(body);
+        container.appendChild(card);
+        // Small delay between cards
+        await new Promise(r => setTimeout(r, 150 + bi * 60));
+        // Stream the text character by character
+        const bodyText = key ? bloco.replace(key,'').trim() : bloco;
+        const cursor = body.querySelector('.stream-cursor');
+        let chars = '';
+        const charDelay = Math.min(12, 3000 / bodyText.length);
+        for (let ci = 0; ci < bodyText.length; ci++) {
+            chars += bodyText[ci];
+            body.innerHTML = chars.replace(/→ (.+)/g,'<span style="display:flex;gap:6px;margin:.2rem 0"><span style="color:' + cor + '">→</span><span>$1</span></span>')
+                                  .replace(/✓ (.+)/g,'<span style="display:flex;gap:6px;margin:.2rem 0"><span style="color:#4cd97b">✓</span><span>$1</span></span>')
+                                  .replace(/\n/g,'<br>') + '<span class="stream-cursor"></span>';
+            if (ci % 3 === 0) await new Promise(r => setTimeout(r, charDelay));
+        }
+        // Remove cursor when done
+        const finalCursor = body.querySelector('.stream-cursor');
+        if (finalCursor) finalCursor.remove();
+    }
+}
+
+// ============================================================
+// SCORE GAUGE
+// ============================================================
+function showScoreGauge() {
+    const widget = document.getElementById('score-widget');
+    const arc    = document.getElementById('score-arc');
+    const text   = document.getElementById('score-text');
+    const desc   = document.getElementById('score-desc');
+    if (!widget) return;
+    const score = 75 + Math.floor(Math.random() * 22); // 75–96
+    widget.style.display = 'flex';
+    // Animate arc: circumference = 2*pi*26 ≈ 163
+    const offset = 163 - (163 * score / 100);
+    setTimeout(() => {
+        arc.style.strokeDashoffset = offset;
+        let n = 0;
+        const interval = setInterval(() => {
+            n = Math.min(n + 2, score);
+            text.textContent = n;
+            if (n >= score) clearInterval(interval);
+        }, 18);
+    }, 300);
+    const labels = ['Excelente potencial! Sua empresa está pronta para escalar.', 'Ótimo potencial! Há ganhos claros a capturar.', 'Alto potencial de transformação identificado.'];
+    desc.textContent = labels[Math.floor(Math.random()*labels.length)] + ` (${score}/100)`;
+}
+
+// ============================================================
+// CHIP RIPPLE
+// ============================================================
+document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', function(e) {
+        const rect = chip.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const ripple = document.createElement('span');
+        ripple.className = 'chip-ripple';
+        ripple.style.cssText = `left:${x}px;top:${y}px;width:20px;height:20px;transform:translate(-50%,-50%) scale(0)`;
+        chip.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 500);
+    });
+});
+
+// ============================================================
+// TOAST PREMIUM
+// ============================================================
+const _origToast = toast;
+function toast(msg, tipo='success') {
+    const t = document.getElementById('toast');
+    t.innerHTML = `<strong>${tipo === 'success' ? '✓' : '✗'} ${msg}</strong><div class="toast-progress"></div>`;
+    t.className = `toast ${tipo} show`;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+</script>
+
+<!-- LUA 3D (isolada) -->
+<script>
+(function(){
+    try {
+        const canvas = document.getElementById('moon-canvas');
+        if (!canvas || typeof THREE === 'undefined') return;
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true, powerPreference:'low-power' });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0,0,7);
+        const moonGroup = new THREE.Group();
+        scene.add(moonGroup);
+        moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.8,64,64), new THREE.MeshStandardMaterial({color:0xc8820a,roughness:.85,metalness:.05,emissive:0x2d1800,emissiveIntensity:.2})));
+        const shadow = new THREE.Mesh(new THREE.SphereGeometry(1.83,64,64), new THREE.MeshBasicMaterial({color:0x080617}));
+        shadow.position.set(-0.78,0.18,0.05);
+        moonGroup.add(shadow);
+        const glowMat = new THREE.MeshBasicMaterial({color:0xf0a500,transparent:true,opacity:.04,side:THREE.BackSide});
+        moonGroup.add(new THREE.Mesh(new THREE.SphereGeometry(2.1,32,32), glowMat));
+        const sun = new THREE.DirectionalLight(0xfff4cc,2.0);
+        sun.position.set(5,2,4); scene.add(sun);
+        scene.add(new THREE.AmbientLight(0x221100,.3));
+        moonGroup.position.set(3.2,0.5,0);
+        let tMx=0,tMy=0,cMx=0,cMy=0,rotY=0,rotX=0;
+        document.addEventListener('mousemove', e => { tMx=(e.clientX/window.innerWidth-.5)*2; tMy=(e.clientY/window.innerHeight-.5)*2; });
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const d=clock.getDelta(), t=clock.getElapsedTime();
+            rotY+=d*.04; rotX+=d*.008;
+            cMx+=(tMx-cMx)*.04; cMy+=(tMy-cMy)*.04;
+            moonGroup.rotation.y=rotY+cMx*.1;
+            moonGroup.rotation.x=rotX+cMy*.05;
+            glowMat.opacity=.03+Math.sin(t*.8)*.015;
+            moonGroup.position.y=0.5+Math.sin(t*.5)*.04;
+            renderer.render(scene,camera);
+        }
+        window.addEventListener('resize',()=>{ camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight); });
+        document.addEventListener('visibilitychange',()=>{ if(document.hidden) clock.stop(); else clock.start(); });
+        animate();
+    } catch(e){ console.error('Moon error:',e); }
+})();
+</script>
+
+<!-- PARTÍCULAS 2D (isoladas) -->
+<script>
+(function(){
+    try {
+        const c=document.getElementById('particle-canvas');
+        if(!c) return;
+        const ctx=c.getContext('2d');
+        let pts=[];
+        function init(){
+            c.width=window.innerWidth; c.height=window.innerHeight; pts=[];
+            const n=Math.floor((c.width*c.height)/12000);
+            for(let i=0;i<n;i++) pts.push({x:Math.random()*c.width,y:Math.random()*c.height,vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,r:Math.random()*1.1+.3});
+        }
+        function draw(){
+            ctx.clearRect(0,0,c.width,c.height);
+            for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+                const dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d=Math.sqrt(dx*dx+dy*dy);
+                if(d<100){ctx.strokeStyle=`rgba(240,165,0,${.12*(1-d/100)})`;ctx.lineWidth=.4;ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.stroke();}
+            }
+            pts.forEach(p=>{ctx.fillStyle='rgba(240,165,0,0.3)';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>c.width)p.vx*=-1;if(p.y<0||p.y>c.height)p.vy*=-1;});
+            requestAnimationFrame(draw);
+        }
+        window.addEventListener('resize',init);
+        init(); draw();
+    } catch(e){}
+})();
+</script>
+</body>
+</html>
